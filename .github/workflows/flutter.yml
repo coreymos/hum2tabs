@@ -30,8 +30,9 @@ jobs:
       - name: Static analysis
         run: flutter analyze
 
-      - name: Run unit tests
-        run: flutter test --coverage
+      # Currently no Tests
+      #- name: Run unit tests
+      #  run: flutter test --coverage
 
       # 4 Build a debug APK as a smoke-test
       - name: Build debug APK
