@@ -1,54 +1,56 @@
 name: Flutter CI
 
 on:
-  push:         { branches: [main] }
-  pull_request: { branches: [main] }
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
   build:
+    name: Analyze • Build APK
     runs-on: ubuntu-latest
 
     steps:
-    # 1 – Checkout
-    - uses: actions/checkout@v4                                 # node-20 ready :contentReference[oaicite:3]{index=3}
+    # 1️⃣ Check out repo (v4)
+    - uses: actions/checkout@v4.2.2   # latest stable  :contentReference[oaicite:3]{index=3}
 
-    # 2 – JDK 17 (required by Flutter 3.22 / AGP 8) :contentReference[oaicite:4]{index=4}
-    - uses: actions/setup-java@v4
+    # 2️⃣ Install Java 17 (required by AGP 8.x / Flutter 3.29)
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4      # GA Oct-2024  :contentReference[oaicite:4]{index=4}
       with:
         distribution: temurin
-        java-version: '17'
+        java-version: 17
 
-    # 3 – Android SDK + NDK with licences auto-accepted
-    - uses: android-actions/setup-android@v3
-      with:
-        # ✅ Boolean, *not* "yes"
-        accept-android-sdk-licenses: true
-        log-accepted-android-sdk-licenses: false
-
-        # Extra packages your build complained about
-        packages: |
-          platforms;android-34
-          build-tools;34.0.0
-          ndk;29.0.13113456         # same revision Gradle asked for 
-        # cmdline-tools-version stays default (12266719) :contentReference[oaicite:5]{index=5}
-
-    # 4 – Flutter (with cache)
-    - uses: subosito/flutter-action@v2
+    # 3️⃣ Install Flutter (stable channel)
+    - uses: subosito/flutter-action@v2.19.0  # latest Apr-2025  :contentReference[oaicite:5]{index=5}
       with:
         channel: stable
-        cache: true                               :contentReference[oaicite:6]{index=6}
+        cache: true                # speed up builds
 
-    # 5 – Doctor / pub / lint
-    - run: flutter doctor -v
-    - run: flutter pub get
-    - run: flutter analyze
+    # 4️⃣ Doctor (sanity)
+    - name: Flutter doctor
+      run: flutter doctor -v
 
-    # 6 – Smoke-test build
-    - run: flutter build apk --debug --no-shrink
+    # 5️⃣ Resolve packages
+    - name: Flutter pub get
+      run: flutter pub get
 
-    # 7 – Upload artefact (Actions v4)
-    - uses: actions/upload-artifact@v4
+    # 6️⃣ Static analysis (optional but fast)
+    - name: Flutter analyze
+      run: flutter analyze
+
+    # 7️⃣ Build a debug APK as smoke test
+    - name: Build Debug APK
+      run: flutter build apk --debug --no-shrink
+
+    # 8️⃣ (Optional) upload APK — uncomment when you need it
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
       with:
-        name: hum2tabs-debug-apk
+        name: debug-apk
         path: build/app/outputs/flutter-apk/app-debug.apk
-        retention-days: 14
+
+    # 9️⃣ Unit tests — keep disabled until tests are written
+    # - name: Run tests
+    #   run: flutter test --coverage
