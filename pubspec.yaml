@@ -31,6 +31,18 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # audio capture & encoding
+  flutter_sound: ^9.28.0      # published 28 days ago :contentReference[oaicite:0]{index=0}
+
+  # file-system helpers
+  path_provider: ^2.1.5       # current stable (5 months old) :contentReference[oaicite:1]{index=1}
+
+  # runtime permission prompts
+  permission_handler: ^12.0.0+1   # released 13 days ago, supports Android 35 :contentReference[oaicite:2]{index=2}
+
+  # pure-Dart WAV reader/writer (we’ll trim silence with this)
+  wav: ^1.4.0                # latest version (34 days old) :contentReference[oaicite:3]{index=3}
+
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
