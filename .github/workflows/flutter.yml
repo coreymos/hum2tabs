@@ -12,45 +12,45 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # 1️⃣ Check out repo (v4)
-    - uses: actions/checkout@v4.2.2   # latest stable  :contentReference[oaicite:3]{index=3}
+    # 1️⃣ Check out repo
+    - uses: actions/checkout@v4.2.2                 # 2024-10  :contentReference[oaicite:2]{index=2}
 
-    # 2️⃣ Install Java 17 (required by AGP 8.x / Flutter 3.29)
+    # 2️⃣ JDK 17 for AGP 8.x / Flutter 3.29
     - name: Set up JDK 17
-      uses: actions/setup-java@v4      # GA Oct-2024  :contentReference[oaicite:4]{index=4}
+      uses: actions/setup-java@v4                   # 2024-11  :contentReference[oaicite:3]{index=3}
       with:
         distribution: temurin
         java-version: 17
 
-    # 3️⃣ Install Flutter (stable channel)
-    - uses: subosito/flutter-action@v2.19.0  # latest Apr-2025  :contentReference[oaicite:5]{index=5}
+    # 3️⃣ Install Flutter
+    - uses: subosito/flutter-action@v2.19.0         # 2025-04  :contentReference[oaicite:4]{index=4}
       with:
         channel: stable
-        cache: true                # speed up builds
+        cache: true
 
-    # 4️⃣ Doctor (sanity)
-    - name: Flutter doctor
-      run: flutter doctor -v
+    # 4️⃣ ▶ INSTALL NDK 29 & accept all licences  ◀
+    - name: Install NDK 29 & accept licences
+      run: |
+        yes | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager "ndk;29.0.13113456"
+        yes | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --licenses
 
-    # 5️⃣ Resolve packages
-    - name: Flutter pub get
-      run: flutter pub get
+    # 5️⃣ Flutter doctor
+    - run: flutter doctor -v
 
-    # 6️⃣ Static analysis (optional but fast)
-    - name: Flutter analyze
-      run: flutter analyze
+    # 6️⃣ Resolve packages
+    - run: flutter pub get
 
-    # 7️⃣ Build a debug APK as smoke test
-    - name: Build Debug APK
-      run: flutter build apk --debug --no-shrink
+    # 7️⃣ Static analysis
+    - run: flutter analyze
 
-    # 8️⃣ (Optional) upload APK — uncomment when you need it
-    - name: Upload APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: debug-apk
-        path: build/app/outputs/flutter-apk/app-debug.apk
+    # 8️⃣ Build debug APK (smoke test)
+    - run: flutter build apk --debug --no-shrink
 
-    # 9️⃣ Unit tests — keep disabled until tests are written
-    # - name: Run tests
-    #   run: flutter test --coverage
+    # 9️⃣ (optional) Upload APK artifact
+    # - uses: actions/upload-artifact@v4
+    #   with:
+    #     name: debug-apk
+    #     path: build/app/outputs/flutter-apk/app-debug.apk
+
+    # 🔟 Tests – uncomment when ready
+    # - run: flutter test --coverage
