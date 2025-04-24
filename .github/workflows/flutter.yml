@@ -1,47 +1,55 @@
 name: Flutter CI
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  push:        { branches: [main] }
+  pull_request: { branches: [main] }
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read        # checkout
-      actions: read         # download other actions
-      id-token: write       # required by v4 artifact actions
+
     steps:
-      # 1 Checkout
-      - uses: actions/checkout@v4                         # v4 is node20-ready :contentReference[oaicite:1]{index=1}
+    # 1 – Checkout source
+    - uses: actions/checkout@v4                      # node-20 ready :contentReference[oaicite:1]{index=1}
 
-      # 2 Install Flutter
-      - uses: subosito/flutter-action@v2                  # stable channel
+    # 2 – Java 17 is the minimum AGP 8.x / Flutter 3.22-plus requires :contentReference[oaicite:2]{index=2}
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '17'
 
-      # 3 Doctor / pub / analysis / tests
-      - name: Flutter Doctor
-        run: flutter doctor -v
+    # 3 – Android SDK **and** NDK with licences auto-accepted
+    - name: Set up Android SDK + NDK
+      uses: android-actions/setup-android@v3         # auto-accepts licences :contentReference[oaicite:3]{index=3}
+      with:
+        # Everything you’ll actually need to compile/debug:
+        packages: |
+          platforms;android-34
+          build-tools;34.0.0
+          ndk;29.0.13113456                          # matches Gradle error
+        accept-android-sdk-licenses: "yes"           # explicit for clarity
 
-      - name: Pub get
-        run: flutter pub get
+    # 4 – Flutter (cached)
+    - uses: subosito/flutter-action@v2               # installs & caches Flutter :contentReference[oaicite:4]{index=4}
+      with:
+        channel: stable
+        cache: true                                  # speeds up subsequent runs
 
-      - name: Static analysis
-        run: flutter analyze
+    # 5 – Doctor, pub, analysis, tests (add back when they pass)
+    - run: flutter doctor -v
+    - run: flutter pub get
+    - run: flutter analyze
+    # - run: flutter test --coverage                 # uncomment once green
 
-      # Currently no Tests
-      #- name: Run unit tests
-      #  run: flutter test --coverage
+    # 6 – Smoke-test build
+    - name: Build debug APK
+      run: flutter build apk --debug --no-shrink
 
-      # 4 Build a debug APK as a smoke-test
-      - name: Build debug APK
-        run: flutter build apk --debug --no-shrink
-
-      # 5 Upload the build artefact — **v4** is required after Jan 2025
-      - name: Upload APK
-        uses: actions/upload-artifact@v4                  # new major version :contentReference[oaicite:2]{index=2}
-        with:
-          name: hum2tabs-debug-apk
-          path: build/app/outputs/flutter-apk/app-debug.apk
-          retention-days: 14                              # optional
+    # 7 – Upload artefact (Actions v4 is mandatory Jan 2025) :contentReference[oaicite:5]{index=5}
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: hum2tabs-debug-apk
+        path: build/app/outputs/flutter-apk/app-debug.apk
+        retention-days: 14
