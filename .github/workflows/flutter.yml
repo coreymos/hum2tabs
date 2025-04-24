@@ -12,37 +12,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Check out your code
       - uses: actions/checkout@v3
 
-      # 2. Install Flutter
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
 
-      # 3. Run Flutter doctor
       - name: Flutter Doctor
         run: flutter doctor -v
 
-      # 4. Get dependencies
       - name: Pub get
         run: flutter pub get
 
-      # 5. Analyze
       - name: Analyze
         run: flutter analyze
 
-      # 6. Run tests (if you add any later)
       - name: Run tests
         run: flutter test --coverage
 
-      # 7. Build APK (debug as smoke test)
       - name: Build Debug APK
         run: flutter build apk --debug --no-shrink
 
-      # 8. Upload the APK as an artifact
       - name: Upload APK
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3.1.2
         with:
           name: debug-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
