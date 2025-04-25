@@ -1,7 +1,18 @@
 import 'package:flutter/material.dart';
-import 'widgets/record_button.dart';   // <-- add this import
+import 'ml/pitch_inference.dart';      // NEW – service that loads dummy.tflite
+import 'widgets/record_button.dart';  // existing mic / stop button
 
-void main() => runApp(const Hum2TabsApp());
+Future<void> main() async {
+  // 1️⃣  Make sure the Flutter engine & asset bundle are ready.
+  WidgetsFlutterBinding.ensureInitialized();           // required for any asset I/O :contentReference[oaicite:0]{index=0}
+
+  // 2️⃣  Load the (dummy) TFLite model once, before the first frame.
+  final pitchService = PitchInferenceService();
+  await pitchService.init();                           // Interpreter.fromAsset('models/dummy.tflite')
+
+  // 3️⃣  Launch the UI.
+  runApp(const Hum2TabsApp());
+}
 
 class Hum2TabsApp extends StatelessWidget {
   const Hum2TabsApp({super.key});
@@ -29,7 +40,7 @@ class HomePage extends StatelessWidget {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: const Center(
-        child: RecordButton(),        // <-- our mic / stop button
+        child: RecordButton(),        // mic / stop button you already built
       ),
     );
   }
