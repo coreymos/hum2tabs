@@ -3,20 +3,14 @@
 import 'dart:async';
 import 'dart:math';
 
-/// A MIDI note (0–127) tagged with the instant it was seen.
-class QuantizedPitch {
-  final int midiNote;
-  final DateTime time;
-  QuantizedPitch(this.midiNote, this.time);
-}
+import 'quantized_pitch.dart';
 
 /// Turn a raw frequency (Hz) into a MIDI note number (0–127)
 /// if it’s within ±50 cents of an exact semitone; otherwise null.
 int? quantizeToMidi(double freq, {double maxCentDeviation = 50}) {
-  // midiFloat = 69 + 12·log2(freq/440)
-  final midiFloat = 69 + 12 * (log(freq / 440) / log(2));
+  final midiFloat   = 69 + 12 * (log(freq / 440) / log(2));
   final midiNearest = midiFloat.round();
-  final centError = (midiFloat - midiNearest).abs() * 100;
+  final centError   = (midiFloat - midiNearest).abs() * 100;
   if (centError <= maxCentDeviation && midiNearest >= 0 && midiNearest <= 127) {
     return midiNearest;
   }
@@ -40,9 +34,8 @@ StreamTransformer<QuantizedPitch, QuantizedPitch> debouncePitch({
         timer = Timer(minDuration, () {
           sink.add(last!);
         });
-      } else {
-        // same note, nothing changes – let previous timer fire
       }
+      // else: same note, just wait for timer to fire
     },
     handleDone: (sink) {
       timer?.cancel();
