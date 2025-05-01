@@ -47,10 +47,10 @@ jobs:
     - run: flutter build apk --debug --no-shrink
 
     # 9️⃣ (optional) Upload APK artifact
-    # - uses: actions/upload-artifact@v4
-    #   with:
-    #     name: debug-apk
-    #     path: build/app/outputs/flutter-apk/app-debug.apk
+    - uses: actions/upload-artifact@v4
+      with:
+        name: debug-apk
+        path: build/app/outputs/flutter-apk/app-debug.apk
 
     # 🔟 Tests – uncomment when ready
-    # - run: flutter test --coverage
+    - run: flutter test --coverage
