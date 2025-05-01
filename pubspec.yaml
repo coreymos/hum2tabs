@@ -4,16 +4,16 @@ publish_to: none          # keep private
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.7.2              # matches your current toolchain
+  sdk: ^3.7.2
 
 dependencies:
   flutter:
     sdk: flutter
-  flutter_sound: ^9.28.0   # audio recorder
+  flutter_sound: ^9.28.0
   path_provider: ^2.1.5
   permission_handler: ^12.0.0+1
-  wav: ^1.4.0              # pure-Dart PCM I/O
-  tflite_flutter: ^0.11.0  # ⇐ NEW: offline ML runtime :contentReference[oaicite:0]{index=0}
+  wav: ^1.4.0
+  tflite_flutter: ^0.11.0
   cupertino_icons: ^1.0.8
 
 dev_dependencies:
@@ -23,5 +23,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  assets:                  # ⇐ NEW: bundle your (dummy) model
+
+  assets:
     - assets/models/dummy.tflite
+    - assets/models/pitch_crepe_micro.tflite
