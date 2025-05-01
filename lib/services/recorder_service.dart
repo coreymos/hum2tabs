@@ -1,8 +1,4 @@
 // lib/services/recorder_service.dart
-//
-// Records the mic to a 44 100 Hz 16-bit mono WAV file **and**
-// streams every PCM frame to PitchService in real-time.
-//
 
 import 'dart:async';
 import 'dart:io';
@@ -12,85 +8,68 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
-import '../utils/note_utils.dart';
 
+import '../utils/note_utils.dart';
 import '../utils/silence_trim.dart';
 import 'pitch_service.dart';
 
 class RecorderService {
-  /* -------------------------------------------------------------------------- */
-  /*                              private fields                                */
-  /* -------------------------------------------------------------------------- */
-
   final FlutterSoundRecorder _recorder = FlutterSoundRecorder();
-  final PitchService        _pitch    = PitchService();
-
-  /// Controller that receives the PCM chunks coming from flutter_sound.
+  final PitchService _pitch         = PitchService();
   StreamController<Uint8List>? _pcmCtrl;
-
-  bool   _ready    = false;
+  bool _ready = false;
   String? _filePath;
-
-  /* -------------------------------------------------------------------------- */
-  /*                               init helpers                                 */
-  /* -------------------------------------------------------------------------- */
 
   Future<void> _ensureReady() async {
     if (_ready) return;
-
     final status = await Permission.microphone.request();
     if (!status.isGranted) {
       throw RecordingPermissionException('Microphone permission denied');
     }
-
-    await _recorder.openRecorder();  // flutter_sound 9.x call
+    await _recorder.openRecorder();
     _ready = true;
   }
 
-  /* -------------------------------------------------------------------------- */
-  /*                                public API                                  */
-  /* -------------------------------------------------------------------------- */
-
-  /// Starts recording to `<docs>/records/<timestamp>.wav` **and**
-  /// feeds every raw PCM buffer to [PitchService.detect].
   Future<void> start() async {
     await _ensureReady();
 
-    // Ensure “records” dir exists
-    final docs    = await getApplicationDocumentsDirectory();
-    final records = Directory('${docs.path}/records');
-    if (!await records.exists()) await records.create(recursive: true);
+    // make sure records/ exists
+    final docs = await getApplicationDocumentsDirectory();
+    final recDir = Directory('${docs.path}/records');
+    if (!await recDir.exists()) await recDir.create(recursive: true);
+    _filePath = '${recDir.path}/${DateTime.now().millisecondsSinceEpoch}.wav';
 
-    _filePath = '${records.path}/${DateTime.now().millisecondsSinceEpoch}.wav';
-
-    // Set up a single listener on the PCM stream:
     _pcmCtrl = StreamController<Uint8List>();
-    _pcmCtrl!.stream.listen((Uint8List pcm) async {
-      final freq = await _pitch.detect(pcm);    // double? in Hz
-      if (freq != null) {
-        final note = noteFromFrequency(freq);   // e.g. "A4"
-        debugPrint('🎵 Detected: ${freq.toStringAsFixed(1)} Hz → $note');
-      } else {
-        debugPrint('🎵 No stable pitch');
-      }
-    });
+    final pcmStream = _pcmCtrl!.stream;
+
+    // chain: PCM -> freq -> quantized MIDI -> timestamp -> debounce -> note name
+    pcmStream
+      .asyncMap((pcm) => _pitch.detect(pcm))                   // Future<double?>
+      .where((f) => f != null)                                 // drop nulls
+      .cast<double>()
+      .map((f) => quantizeToMidi(f))                           // int? 
+      .where((m) => m != null)
+      .cast<int>()
+      .map((m) => QuantizedPitch(m, DateTime.now()))           // QuantizedPitch
+      .transform(debouncePitch())                              // debounce
+      .listen((stable) {
+        final note = noteFromMidi(stable.midiNote);
+        debugPrint('♪ Stable note: $note at ${stable.time.toIso8601String()}');
+      });
 
     await _recorder.startRecorder(
-      toFile   : _filePath,
-      codec    : Codec.pcm16WAV,   // 44 100 Hz, 16-bit, mono (default)
-      toStream : _pcmCtrl!.sink,   // real-time PCM stream
+      toFile: _filePath,
+      codec: Codec.pcm16WAV,
+      toStream: _pcmCtrl!.sink,
     );
   }
 
-  /// Stops recording, trims leading/trailing silence, and
-  /// returns the **trimmed** WAV file path.
   Future<String> stop() async {
     await _recorder.stopRecorder();
     await _pcmCtrl?.close();
     await _recorder.closeRecorder();
     _ready = false;
 
-    // Trim silence (helper returns a *new* file)
     final trimmed = await trimWav(input: File(_filePath!));
     _filePath = trimmed.path;
     return _filePath!;
