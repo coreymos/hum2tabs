@@ -12,6 +12,7 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_sound/flutter_sound.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import '../utils/note_utils.dart';
 
 import '../utils/silence_trim.dart';
 import 'pitch_service.dart';
@@ -62,11 +63,16 @@ class RecorderService {
 
     _filePath = '${records.path}/${DateTime.now().millisecondsSinceEpoch}.wav';
 
-    // Create a controller that forwards PCM chunks to the pitch detector
+    // Set up a single listener on the PCM stream:
     _pcmCtrl = StreamController<Uint8List>();
     _pcmCtrl!.stream.listen((Uint8List pcm) async {
-      final freq = await _pitch.detect(pcm);
-      if (freq != null) debugPrint('🎵 Detected pitch: ${freq.toStringAsFixed(2)} Hz');
+      final freq = await _pitch.detect(pcm);    // double? in Hz
+      if (freq != null) {
+        final note = noteFromFrequency(freq);   // e.g. "A4"
+        debugPrint('🎵 Detected: ${freq.toStringAsFixed(1)} Hz → $note');
+      } else {
+        debugPrint('🎵 No stable pitch');
+      }
     });
 
     await _recorder.startRecorder(
