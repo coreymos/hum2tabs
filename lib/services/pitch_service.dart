@@ -1,40 +1,54 @@
+// lib/services/pitch_service.dart
+
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:pitch_detector_dart/pitch_detector.dart';
 
 import '../models/note_event.dart';
-import '../utils/note_utils.dart';  // <-- exports, quantizeToMidi, debouncePitch
-import '../utils/quantized_pitch.dart'; // <-- QuantizedPitch
+import '../utils/note_utils.dart';      // quantizeToMidi, debouncePitch
+import '../utils/quantized_pitch.dart'; // QuantizedPitch
 
-/// Wraps the low-level YIN detector, quantizes & debounces pitches,
-/// then segments them into NoteEvent(startSec,endSec,midiNote).
 class PitchService {
-  final PitchDetector _detector = PitchDetector();
+  final _detector = PitchDetector(
+    audioSampleRate: 44100.0,
+    bufferSize: PitchDetector.DEFAULT_BUFFER_SIZE,
+  );
+
   final _pcmController = StreamController<Uint8List>();
   final _evtController = StreamController<NoteEvent>.broadcast();
 
   DateTime? _recordStart;
   QuantizedPitch? _current;
   double? _currentStartSec;
+  Timer? _inactivityTimer;
 
-  // silence ≥150ms → new note
-  static const Duration _segmentationGap = Duration(milliseconds: 150);
+  final Duration _segmentationGap;
 
-  /// Legacy API, so your existing pitch tests still compile.
-  Future<double?> detect(Uint8List pcm) => _detect(pcm);
+  PitchService({Duration? segmentationGap})
+      : _segmentationGap = segmentationGap ?? const Duration(milliseconds: 150) {
+    _pcmController.stream
+        .asyncMap(_detect)
+        .where((f) => f != null)
+        .cast<double>()
+        .map(quantizeToMidi)
+        .where((m) => m != null)
+        .cast<int>()
+        .map((m) => QuantizedPitch(m, DateTime.now()))
+        .transform(debouncePitch())
+        .listen(_handleQuantized);
+  }
 
-  /// Feeds one PCM frame (Uint8List) into the quantize/debounce/segment pipeline.
+  Stream<NoteEvent> get noteEvents => _evtController.stream;
+
   void addPcm(Uint8List pcm) {
     _recordStart ??= DateTime.now();
     _pcmController.add(pcm);
   }
 
-  /// Emits every completed NoteEvent.
-  Stream<NoteEvent> get noteEvents => _evtController.stream;
-
-  /// Flushes the final in-flight note (if any) and closes all controllers.
   Future<void> close() async {
+    _inactivityTimer?.cancel();
     if (_current != null && _recordStart != null) {
       final endSec = _current!.time
           .difference(_recordStart!)
@@ -49,29 +63,20 @@ class PitchService {
     await _evtController.close();
   }
 
-  PitchService() {
-    _pcmController.stream
-      // 1) raw PCM → detected freq
-      .asyncMap(_detect)
-      .where((f) => f != null)
-      .cast<double>()
-      // 2) freq → nearest MIDI (null if >±50 cents)
-      .map(quantizeToMidi)
-      .where((m) => m != null)
-      .cast<int>()
-      // 3) tag with timestamp
-      .map((m) => QuantizedPitch(m, DateTime.now()))
-      // 4) debounce <80ms glitches
-      .transform(debouncePitch())
-      // 5) segment into NoteEvent
-      .listen(_handleQuantized);
-  }
+  Future<double?> detect(Uint8List pcm) => _detect(pcm);
 
-  Future<double?> _detect(Uint8List pcm) async {
+  Future<double?> _detect(Uint8List pcmBytes) async {
     try {
-      final r = await _detector.getPitchFromIntBuffer(pcm);
-      return r.pitched ? r.pitch : null;
-    } catch (_) {
+      final sampleCount = pcmBytes.lengthInBytes ~/ 2;
+      debugPrint('🎯 PitchService: running detector on $sampleCount samples');
+      final result = await _detector.getPitchFromIntBuffer(pcmBytes);
+      debugPrint(
+        '🎯 Detector result: pitched=${result.pitched}, '
+        'pitch=${result.pitch.toStringAsFixed(1)}'
+      );
+      return result.pitched ? result.pitch : null;
+    } catch (e) {
+      debugPrint('⚠️ Pitch detection error: $e');
       return null;
     }
   }
@@ -81,30 +86,40 @@ class PitchService {
     final start = _recordStart!;
     final elapsedSec = now.difference(start).inMilliseconds / 1000.0;
 
-    if (_current == null) {
-      // first note → just record its start
-      _current = qp;
-      _currentStartSec = elapsedSec;
-      return;
-    }
+    final prev = _current;
+    final isNewNote = prev == null ||
+        qp.midiNote != prev.midiNote ||
+        now.difference(prev.time) >= _segmentationGap;
 
-    final prev = _current!;
-    final gap = now.difference(prev.time);
-
-    // if note changed or long gap → emit previous
-    if (qp.midiNote != prev.midiNote || gap >= _segmentationGap) {
+    if (isNewNote && prev != null) {
       final prevEnd = prev.time.difference(start).inMilliseconds / 1000.0;
       _evtController.add(NoteEvent(
         midiNote: prev.midiNote,
         startSec: _currentStartSec!,
         endSec: prevEnd,
       ));
-      // start the next one
+    }
+
+    if (isNewNote) {
       _current = qp;
       _currentStartSec = elapsedSec;
     } else {
-      // same note, update timestamp
       _current = qp;
     }
+
+    // Reset inactivity timer
+    _inactivityTimer?.cancel();
+    _inactivityTimer = Timer(_segmentationGap, () {
+      if (_current != null && _recordStart != null) {
+        final endSec = _current!.time.difference(_recordStart!).inMilliseconds / 1000.0;
+        _evtController.add(NoteEvent(
+          midiNote: _current!.midiNote,
+          startSec: _currentStartSec!,
+          endSec: endSec,
+        ));
+        _current = null;
+        _currentStartSec = null;
+      }
+    });
   }
 }
