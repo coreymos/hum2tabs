@@ -56,6 +56,8 @@ class PitchService {
     _pcmCtrl.add(pcm);
   }
 
+  void flush() => _flushCurrent();
+
   Future<void> close() async {
     _flushCurrent();
     await _pcmCtrl.close();
