@@ -32,5 +32,24 @@ Finalized console output currently returns:
   C4 (0.0s – 0.5s),
   D4 (0.5s – 1.1s),
   E4 (1.1s – 1.8s),
-  ...
 ]
+```
+## 🛣️ Upcoming Features (Planned Tasks)
+
+These features are scoped and prioritized in upcoming sprints.
+
+| Task ID | Feature | Status |
+|---------|---------|--------|
+| HUM-18 | 🎯 Rhythm quantization (based on BPM) | ⏳ Planned |
+| HUM-19 | 🎛️ BPM slider & waveform preview UI | ⏳ Planned |
+| HUM-20 | 🎸 Fret/string mapping (standard tuning) | ⏳ Planned |
+| HUM-21 | 📝 Render basic tab in UI with scrolling | ⏳ Planned |
+| HUM-22 | 💾 Save tab as JSON to local storage | ⏳ Planned |
+| HUM-23 | 🧾 Export tab as MIDI using `dart_midi` | ⏳ Planned |
+| HUM-24 | 📤 Share MIDI via OS share sheet | ⏳ Planned |
+| HUM-25 | 🔍 Investigate Guitar Pro `.gp5` export | ⏳ Planned |
+| HUM-26 | 🎼 Sheet music rendering (`simple_sheet_music`) | ⏳ Planned |
+| HUM-27 | 🔁 Toggle between Tab / Sheet / Both | ⏳ Planned |
+| HUM-28 | ▶️ Playback WAV with animation | ⏳ Planned |
+| HUM-29 | 🧭 Onboarding coach marks (ShowcaseView) | ⏳ Planned |
+
