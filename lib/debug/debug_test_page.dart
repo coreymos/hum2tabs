@@ -227,7 +227,6 @@ class _DebugTestPageState extends State<DebugTestPage> {
 
   @override
   Widget build(BuildContext context) {
-    final canRecord = !_isRecording;
     final canPlay   = _lastRecording != null && !_isRecording && !_player.isPlaying;
 
     return Scaffold(
